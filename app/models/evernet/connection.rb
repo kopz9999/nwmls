@@ -4,10 +4,11 @@ class Evernet::Connection
   DEFAULT_SCHEMA_NAME = 'StandardXML1_2'
   MLS = 'NWMLS'
   DEFAULT_PTYP = 'RESI'
+  IMAGE_SCHEMA = 'NWMLS:EverNet:ImageData:1.0'
 
   cattr_accessor :user, :pass, :schema_name
 
-  attr_accessor :client
+  attr_accessor :client, :image_client
 
   def self.retrieve_amenity_data(property_type)
     response = instance.client.call :retrieve_amenity_data, message: { v_strXmlQuery: build_query(:property_type => property_type) }
@@ -25,6 +26,12 @@ class Evernet::Connection
     response = instance.client.call :retrieve_image_data, message: { v_strXmlQuery: build_query(conditions) }
     raw = response.body[:retrieve_image_data_response][:retrieve_image_data_result]
     load_data_result_with_nokogiri(raw)
+  end
+
+  def self.retrieve_image_binary(conditions = {})
+    response = instance.image_client.call :retrieve_images, message: { query: build_image_query(conditions) }
+    raw = response.body[:retrieve_images_response][:retrieve_images_result]
+    load_img_data_with_nokogiri(raw)
   end
 
   def self.retrieve_listing_data(conditions = {}, filters = [])
@@ -68,6 +75,10 @@ class Evernet::Connection
       wsdl: "http://evernet.nwmls.com/evernetqueryservice/evernetquery.asmx?WSDL",
       convert_request_keys_to: :none,
     )
+    self.image_client = Savon.client(
+      wsdl: "http://images.idx.nwmls.com/imageservice/imagequery.asmx?WSDL",
+      convert_request_keys_to: :none,
+    )
   end
 
 
@@ -109,9 +120,37 @@ class Evernet::Connection
     end
   end
 
+  def self.build_image_query(conditions = {}, filters = [])
+    conditions = self.sanitize_conditions(conditions)
+
+    xml = Builder::XmlMarkup.new
+    xml.instruct! :xml, :version=>"1.0"
+    xml.ImageQuery(:xmlns => "NWMLS:EverNet:ImageQuery:1.0") do
+      xml.Auth do
+        xml.UserId user
+        xml.Password pass
+      end
+      xml.Query do
+        xml.ByListingNumber conditions[:listing_number] if conditions[:listing_number]
+        xml.ById conditions[:id] if conditions[:id]
+      end
+      xml.Results do
+        xml.Schema IMAGE_SCHEMA
+      end
+    end
+  end
+
   def self.load_data_result_with_nokogiri(raw)
     xml = Nokogiri::XML(raw)
     if error_element = xml.at("ResponseMessages")
+      raise error_element.text
+    end
+    xml
+  end
+
+  def self.load_img_data_with_nokogiri(raw)
+    xml = Nokogiri::XML(raw)
+    if error_element = xml.at("Message")
       raise error_element.text
     end
     xml
