@@ -127,6 +127,9 @@ class Nwmls::ManufacturedHomeListing < Nwmls::Listing
     AllowAVM
     ProhibitBLOG
     Auction
+    OFF
+    OFFRD
+    SaleType
   )
 
   acts_as_nwmls_listing :property_type => 'MANU', :attribute_mappings => RAW_ATTRIBUTE_NAMES
