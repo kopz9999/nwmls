@@ -6,7 +6,8 @@ class Evernet::Connection
   DEFAULT_PTYP = 'RESI'
   IMAGE_SCHEMA = 'NWMLS:EverNet:ImageData:1.0'
 
-  cattr_accessor :user, :pass, :schema_name
+  cattr_accessor :user, :pass, :schema_name, :client_options,
+                 :image_client_options
 
   attr_accessor :client, :image_client
 
@@ -71,14 +72,26 @@ class Evernet::Connection
   end
 
   def initialize
-    self.client = Savon.client(
+    self.client = Savon.client process_client_options
+    self.image_client = Savon.client process_image_client_options
+  end
+
+  def process_client_options
+    default_opts = {
       wsdl: "http://evernet.nwmls.com/evernetqueryservice/evernetquery.asmx?WSDL",
       convert_request_keys_to: :none,
-    )
-    self.image_client = Savon.client(
+    }
+    default_opts.merge!(client_options) unless client_options.blank?
+    default_opts
+  end
+
+  def process_image_client_options
+    default_opts = {
       wsdl: "http://images.idx.nwmls.com/imageservice/imagequery.asmx?WSDL",
       convert_request_keys_to: :none,
-    )
+    }
+    default_opts.merge!(image_client_options) unless image_client_options.blank?
+    default_opts
   end
 
 
