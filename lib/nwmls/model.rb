@@ -27,7 +27,11 @@ module Nwmls
 
     def initialize(params={})
       params.each do |attr, value|
-        self.public_send("#{attr}=", value)
+        if self.respond_to? attr
+          self.public_send("#{attr}=", value)
+        else
+          Rails.logger.warn("#{attr} not found on #{self.class.name}")
+        end
       end
     end
 
